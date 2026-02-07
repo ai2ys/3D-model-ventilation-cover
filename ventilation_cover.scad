@@ -14,24 +14,25 @@
 // Rectangular plate
 plate_x = 120;              // Width X direction (mm)
 plate_y = 120;              // Width Y direction (mm)
-plate_z = 5;                // Thickness Z direction (mm)
+plate_z = 2.8;                // Thickness Z direction (mm)
 
 // Hollow conical cylinder
 cyl_dia_bottom = 95;        // Outer diameter at z=0 (mm)
-cyl_dia_top = 96;           // Outer diameter at z=cyl_height (mm)
+cyl_dia_top = 96+1;           // Outer diameter at z=cyl_height (mm) 96mm inner diameter of tube to fit in 
 cyl_wall_thickness = 2;     // Wall thickness (mm)
 cyl_height = 20;            // Height Z direction (mm)
 cyl_tolerance = 0.05;       // Radius reduction tolerance (mm)
 
 // Cylinder slots (vertical)
-cyl_slot_count = 6;         // Number of slots distributed radially
-cyl_slot_width_bottom = 1;  // Width of each slot at bottom (z=0) (mm)
-cyl_slot_width_top = 5;     // Width of each slot at top (z=height) (mm)
+cyl_slot_count = 7;         // Number of slots distributed radially
+cyl_slot_width_bottom = 0.5;  // Width of each slot at bottom (z=0) (mm)
+cyl_slot_width_top = 4;     // Width of each slot at top (z=height) (mm)
 
 // Line grid stripes (in cylinder opening at z=0)
 stripe_thickness = 2.4;       // Thickness Z direction (mm)
 stripe_width = 1.2;           // Width of each stripe (mm)
 stripe_spacing = 2;         // Distance between stripes (mm)
+stripe_shear_angle = 20;    // Shear angle in Y direction (degrees)
 
 // Stabilizing stripes (perpendicular to grid, in Y direction)
 stabilizer_count = 4;       // Number of stabilizing stripes
@@ -99,15 +100,38 @@ module hollow_cylinder() {
 // Module: Create line grid stripes in cylinder opening
 module stripe_grid() {
     r_outer = cyl_dia_bottom / 2;
+    // Convert angle in degrees to radians for tan()
+    shear_offset = stripe_thickness * tan(stripe_shear_angle);  // X-offset from bottom to top
+    echo("Shear offset for stripes (X): ", shear_offset);
+    echo("Stripe shear tan angle (rad): ", tan(stripe_shear_angle));
     
     // Create stripes spanning X direction across cylinder opening
     for (x = [-(r_outer * 2) : (stripe_width + stripe_spacing) : (r_outer * 2)]) {
         // Intersection: stripe intersected with cylinder opening creates grid pattern
         intersection() {
-            // Rectangular stripe in X direction
-            translate([x, 0, 0])
-                cube([stripe_width, r_outer * 3, stripe_thickness], center = true);
-            
+            // Parallelogram stripe: use hull of two thin extruded polygons
+            hull() {
+                // Bottom thin extruded polygon at z=0
+                translate([x, 0, 0])
+                    linear_extrude(height = 0.01)
+                        polygon([
+                            [-stripe_width/2, -r_outer],
+                            [ stripe_width/2, -r_outer],
+                            [ stripe_width/2,  r_outer],
+                            [-stripe_width/2,  r_outer]
+                        ]);
+
+                // Top thin extruded polygon at z=stripe_thickness with X offset (shear)
+                translate([x + shear_offset, 0, stripe_thickness])
+                    linear_extrude(height = 0.01)
+                        polygon([
+                            [-stripe_width/2, -r_outer],
+                            [ stripe_width/2, -r_outer],
+                            [ stripe_width/2,  r_outer],
+                            [-stripe_width/2,  r_outer]
+                        ]);
+            }
+
             // Circular cylinder boundary
             cylinder(h = stripe_thickness, r = r_outer, center = false, $fn = $fn);
         }
