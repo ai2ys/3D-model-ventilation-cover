@@ -12,11 +12,13 @@
 // The model is designed in OpenSCAD and includes parameters for dimensions and rendering quality. 
 // ========== PARAMETERS ==========
 // Rectangular plate
-plate_x = 120;              // Width X direction (mm)
-plate_y = 120;              // Width Y direction (mm)
+plate_x = 150;              // Width X direction (mm)
+plate_y = 150;              // Width Y direction (mm)
 plate_z = 2.8;                // Thickness Z direction (mm)
 plate_fillet = 2;            // Radius for 2D corner fillet on plate (mm)
 plate_edge_fillet = 0.8;     // Radius for vertical edge fillet (minkowski). Set 0 to disable (mm)
+plate_rim_height = 2.0;      // Height of rim above plate in +Z (mm)
+plate_rim_width = 3.0;       // Rim wall width (inwards from edge) (mm)
 
 // Hollow conical cylinder
 cyl_dia_bottom = 95;        // Outer diameter at z=0 (mm)
@@ -24,7 +26,7 @@ cyl_dia_top = 96;           // Outer diameter at z=cyl_height (mm) 96mm inner di
 cyl_wall_thickness = 2;     // Wall thickness (mm)
 cyl_height = 20;            // Height Z direction (mm)
 cyl_tolerance_bottom = 0;    // Radius reduction tolerance at z=0 (mm)
-cyl_tolerance_top = -2;       // Radius reduction tolerance at z=cyl_height (mm)
+cyl_tolerance_top = -1.5;       // Radius reduction tolerance at z=cyl_height (mm)
 
 // Cylinder slots (vertical)
 cyl_slot_count = 7;         // Number of slots distributed radially
@@ -32,16 +34,16 @@ cyl_slot_width_bottom = 0.5;  // Width of each slot at bottom (z=0) (mm)
 cyl_slot_width_top = 4;     // Width of each slot at top (z=height) (mm)
 
 // Line grid stripes (in cylinder opening at z=0)
-stripe_height = 2.0;       // Thickness Z direction (mm)
+stripe_height = 2.4;       // Thickness Z direction (mm)
 stripe_width = 0.8;           // Width of each stripe (mm)
 stripe_spacing = 1.6;         // Distance between stripes (mm)
 stripe_shear_angle = 25;    // Shear angle in Y direction (degrees)
 
 // Stabilizing stripes (perpendicular to grid, in Y direction)
-stabilizer_count = 5;       // Number of stabilizing stripes
+stabilizer_count = 3;       // Number of stabilizing stripes
 stabilizer_width = 1.2;     // Width of each stabilizer stripe (mm)
 stabilizer_height = 2.0;    // Height Z direction (mm)
-stabilizer_overlap = 0.1;   // Overlap with grid stripes in Z direction (mm)
+stabilizer_overlap = 0.0;   // Overlap with grid stripes in Z direction (mm)
 
 // Rendering quality
 $fn = 360;                  // Fragment number for smooth circles
@@ -49,15 +51,31 @@ $fn = 360;                  // Fragment number for smooth circles
 
 // ========== MODULES ==========
 
-// Module: Create rectangular base plate
-module rectangular_plate() {
-    // Rounded 2D corners only (centered at origin)
+// Module: Plate 2D outline with rounded corners (centered at origin)
+module plate_outline_2d() {
     base_w = max(0, plate_x - 2*plate_fillet);
     base_h = max(0, plate_y - 2*plate_fillet);
+    offset(r = plate_fillet)
+        square([base_w, base_h], center = true);
+}
 
+// Module: Create rectangular base plate
+module rectangular_plate() {
     linear_extrude(height = plate_z)
-        offset(r = plate_fillet)
-            square([base_w, base_h], center = true);
+        plate_outline_2d();
+}
+
+// Module: Create rim on top of plate (positive Z)
+module plate_rim() {
+    if (plate_rim_height > 0 && plate_rim_width > 0) {
+        translate([0, 0, plate_z])
+            linear_extrude(height = plate_rim_height)
+                difference() {
+                    plate_outline_2d();
+                    offset(delta = -plate_rim_width)
+                        plate_outline_2d();
+                }
+    }
 }
 
 // Module: Create slots in cylinder (radial distribution)
@@ -182,9 +200,12 @@ module cylinder_hole_in_plate() {
 
 // ========== ASSEMBLY ==========
 
-// Base rectangular plate with hole
+// Base rectangular plate with hole (and optional rim)
 difference() {
-    rectangular_plate();
+    union() {
+        rectangular_plate();
+        plate_rim();
+    }
     
     // Subtract cylinder hole from plate
     cylinder_hole_in_plate();
