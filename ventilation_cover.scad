@@ -29,16 +29,16 @@ cyl_slot_width_bottom = 0.5;  // Width of each slot at bottom (z=0) (mm)
 cyl_slot_width_top = 4;     // Width of each slot at top (z=height) (mm)
 
 // Line grid stripes (in cylinder opening at z=0)
-stripe_thickness = 2.4;       // Thickness Z direction (mm)
+stripe_thickness = 2.8;       // Thickness Z direction (mm)
 stripe_width = 1.2;           // Width of each stripe (mm)
 stripe_spacing = 2;         // Distance between stripes (mm)
-stripe_shear_angle = 20;    // Shear angle in Y direction (degrees)
+stripe_shear_angle = 30;    // Shear angle in Y direction (degrees)
 
 // Stabilizing stripes (perpendicular to grid, in Y direction)
 stabilizer_count = 4;       // Number of stabilizing stripes
 stabilizer_width = 1.2;     // Width of each stabilizer stripe (mm)
 stabilizer_height = 2.4;    // Height Z direction (mm)
-stabilizer_overlap = 0.5;   // Overlap with grid stripes in Z direction (mm)
+stabilizer_overlap = 1;   // Overlap with grid stripes in Z direction (mm)
 
 // Rendering quality
 $fn = 360;                  // Fragment number for smooth circles
