@@ -37,6 +37,7 @@ stripe_spacing = 2;         // Distance between stripes (mm)
 stabilizer_count = 4;       // Number of stabilizing stripes
 stabilizer_width = 1.2;     // Width of each stabilizer stripe (mm)
 stabilizer_height = 2.4;    // Height Z direction (mm)
+stabilizer_overlap = 0.5;   // Overlap with grid stripes in Z direction (mm)
 
 // Rendering quality
 $fn = 360;                  // Fragment number for smooth circles
@@ -117,6 +118,7 @@ module stripe_grid() {
 module stabilizing_stripes() {
     r_outer = cyl_dia_bottom / 2;
     stabilizer_spacing = (2 * r_outer) / stabilizer_count;  // Equal spacing based on cylinder opening
+    stabilizer_z_start = stripe_thickness - stabilizer_overlap;  // Start where stripes end minus overlap
     
     // Distribute stabilizers symmetrically around center
     for (i = [0 : stabilizer_count - 1]) {
@@ -126,11 +128,11 @@ module stabilizing_stripes() {
         // Intersection: stabilizer stripe intersected with cylinder opening
         intersection() {
             // Rectangular stripe in Y direction (perpendicular to grid)
-            translate([0, offset, 0])
+            translate([0, offset, stabilizer_z_start + stabilizer_height / 2])
                 cube([r_outer * 3, stabilizer_width, stabilizer_height], center = true);
             
             // Circular cylinder boundary
-            cylinder(h = stabilizer_height, r = r_outer, center = false, $fn = $fn);
+            cylinder(h = stabilizer_height + stripe_thickness, r = r_outer, center = false, $fn = $fn);
         }
     }
 }
