@@ -15,13 +15,16 @@
 plate_x = 120;              // Width X direction (mm)
 plate_y = 120;              // Width Y direction (mm)
 plate_z = 2.8;                // Thickness Z direction (mm)
+plate_fillet = 2;            // Radius for 2D corner fillet on plate (mm)
+plate_edge_fillet = 0.8;     // Radius for vertical edge fillet (minkowski). Set 0 to disable (mm)
 
 // Hollow conical cylinder
 cyl_dia_bottom = 95;        // Outer diameter at z=0 (mm)
-cyl_dia_top = 96+1;           // Outer diameter at z=cyl_height (mm) 96mm inner diameter of tube to fit in 
+cyl_dia_top = 96;           // Outer diameter at z=cyl_height (mm) 96mm inner diameter of tube to fit in 
 cyl_wall_thickness = 2;     // Wall thickness (mm)
 cyl_height = 20;            // Height Z direction (mm)
-cyl_tolerance = 0.05;       // Radius reduction tolerance (mm)
+cyl_tolerance_bottom = 0;    // Radius reduction tolerance at z=0 (mm)
+cyl_tolerance_top = -2;       // Radius reduction tolerance at z=cyl_height (mm)
 
 // Cylinder slots (vertical)
 cyl_slot_count = 7;         // Number of slots distributed radially
@@ -29,16 +32,16 @@ cyl_slot_width_bottom = 0.5;  // Width of each slot at bottom (z=0) (mm)
 cyl_slot_width_top = 4;     // Width of each slot at top (z=height) (mm)
 
 // Line grid stripes (in cylinder opening at z=0)
-stripe_thickness = 2.8;       // Thickness Z direction (mm)
-stripe_width = 1.2;           // Width of each stripe (mm)
-stripe_spacing = 2;         // Distance between stripes (mm)
-stripe_shear_angle = 30;    // Shear angle in Y direction (degrees)
+stripe_height = 2.0;       // Thickness Z direction (mm)
+stripe_width = 0.8;           // Width of each stripe (mm)
+stripe_spacing = 1.6;         // Distance between stripes (mm)
+stripe_shear_angle = 25;    // Shear angle in Y direction (degrees)
 
 // Stabilizing stripes (perpendicular to grid, in Y direction)
-stabilizer_count = 4;       // Number of stabilizing stripes
+stabilizer_count = 5;       // Number of stabilizing stripes
 stabilizer_width = 1.2;     // Width of each stabilizer stripe (mm)
-stabilizer_height = 2.4;    // Height Z direction (mm)
-stabilizer_overlap = 1;   // Overlap with grid stripes in Z direction (mm)
+stabilizer_height = 2.0;    // Height Z direction (mm)
+stabilizer_overlap = 0.1;   // Overlap with grid stripes in Z direction (mm)
 
 // Rendering quality
 $fn = 360;                  // Fragment number for smooth circles
@@ -48,15 +51,20 @@ $fn = 360;                  // Fragment number for smooth circles
 
 // Module: Create rectangular base plate
 module rectangular_plate() {
-    translate([-plate_x / 2, -plate_y / 2, 0])
-        cube([plate_x, plate_y, plate_z]);
+    // Rounded 2D corners only (centered at origin)
+    base_w = max(0, plate_x - 2*plate_fillet);
+    base_h = max(0, plate_y - 2*plate_fillet);
+
+    linear_extrude(height = plate_z)
+        offset(r = plate_fillet)
+            square([base_w, base_h], center = true);
 }
 
 // Module: Create slots in cylinder (radial distribution)
 module cylinder_slots() {
-    r_outer_bottom = cyl_dia_bottom / 2 - cyl_tolerance;
-    r_inner_bottom = r_outer_bottom - cyl_wall_thickness;
-    slot_depth = r_outer_bottom + 1;  // Extend beyond outer radius to ensure full penetration
+    r_outer_bottom = cyl_dia_bottom / 2 - cyl_tolerance_bottom;
+    r_outer_top = cyl_dia_top / 2 - cyl_tolerance_top;
+    slot_depth = max(r_outer_bottom, r_outer_top) + 1;  // Extend beyond outer radius to ensure full penetration
     
     // Distribute slots evenly around cylinder circumference
     for (i = [0 : cyl_slot_count - 1]) {
@@ -79,8 +87,8 @@ module cylinder_slots() {
 // Module: Create hollow conical cylinder
 module hollow_cylinder() {
     // Calculate radii
-    r_outer_bottom = cyl_dia_bottom / 2 - cyl_tolerance;
-    r_outer_top = cyl_dia_top / 2 - cyl_tolerance;
+    r_outer_bottom = cyl_dia_bottom / 2 - cyl_tolerance_bottom;
+    r_outer_top = cyl_dia_top / 2 - cyl_tolerance_top;
     r_inner_bottom = r_outer_bottom - cyl_wall_thickness;
     r_inner_top = r_outer_top - cyl_wall_thickness;
     
@@ -101,9 +109,9 @@ module hollow_cylinder() {
 module stripe_grid() {
     r_outer = cyl_dia_bottom / 2;
     // Convert angle in degrees to radians for tan()
-    shear_offset = stripe_thickness * tan(stripe_shear_angle);  // X-offset from bottom to top
+    shear_offset = stripe_height * tan(stripe_shear_angle);  // X-offset from bottom to top
     echo("Shear offset for stripes (X): ", shear_offset);
-    echo("Stripe shear tan angle (rad): ", tan(stripe_shear_angle));
+    echo("Stripe shear tan angle (deg): ", tan(stripe_shear_angle));
     
     // Create stripes spanning X direction across cylinder opening
     for (x = [-(r_outer * 2) : (stripe_width + stripe_spacing) : (r_outer * 2)]) {
@@ -121,8 +129,8 @@ module stripe_grid() {
                             [-stripe_width/2,  r_outer]
                         ]);
 
-                // Top thin extruded polygon at z=stripe_thickness with X offset (shear)
-                translate([x + shear_offset, 0, stripe_thickness])
+                // Top thin extruded polygon at z=stripe_height with X offset (shear)
+                translate([x + shear_offset, 0, stripe_height])
                     linear_extrude(height = 0.01)
                         polygon([
                             [-stripe_width/2, -r_outer],
@@ -133,7 +141,7 @@ module stripe_grid() {
             }
 
             // Circular cylinder boundary
-            cylinder(h = stripe_thickness, r = r_outer, center = false, $fn = $fn);
+            cylinder(h = stripe_height, r = r_outer, center = false, $fn = $fn);
         }
     }
 }
@@ -142,7 +150,7 @@ module stripe_grid() {
 module stabilizing_stripes() {
     r_outer = cyl_dia_bottom / 2;
     stabilizer_spacing = (2 * r_outer) / stabilizer_count;  // Equal spacing based on cylinder opening
-    stabilizer_z_start = stripe_thickness - stabilizer_overlap;  // Start where stripes end minus overlap
+    stabilizer_z_start = stripe_height - stabilizer_overlap;  // Start where stripes end minus overlap
     
     // Distribute stabilizers symmetrically around center
     for (i = [0 : stabilizer_count - 1]) {
@@ -156,14 +164,14 @@ module stabilizing_stripes() {
                 cube([r_outer * 3, stabilizer_width, stabilizer_height], center = true);
             
             // Circular cylinder boundary
-            cylinder(h = stabilizer_height + stripe_thickness, r = r_outer, center = false, $fn = $fn);
+            cylinder(h = stabilizer_height + stripe_height, r = r_outer, center = false, $fn = $fn);
         }
     }
 }
 
 // Module: Create hole in plate where cylinder intersects
 module cylinder_hole_in_plate() {
-    r_outer_bottom = cyl_dia_bottom / 2 - cyl_tolerance;
+    r_outer_bottom = cyl_dia_bottom / 2 - cyl_tolerance_bottom;
     r_inner_bottom = r_outer_bottom - cyl_wall_thickness;
     
     // Cylindrical hole through plate (with extra height to ensure full penetration)
