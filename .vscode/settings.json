@@ -1,0 +1,21 @@
+{
+  "stlPreviewer.showViewButtons": true,
+  "stlPreviewer.showInfo": true,
+  "stlPreviewer.showAxes": true,
+  "stlPreviewer.showBoundingBox": true,
+  "stlPreviewer.showGrid": false,
+  "stlPreviewer.gridColor": "#444",
+  "stlPreviewer.meshMaterialType": "lambert",
+  "stlPreviewer.viewOffset": 50,
+  "stlPreviewer.meshMaterialConfig": {
+    "color": "#ff6600",
+    "wireframe": false,
+    "flatShading": false,
+    "opacity": 1.0,
+    "transparent": false,
+    "side": 2,
+    "shininess": 50,
+    "specular": "#cccccc",
+  }
+
+}
